@@ -800,6 +800,7 @@ copy_folder.pl in imapsync source code.
 # use pragmas
 # 
 
+# JZ: list of deps
 use strict ;
 use warnings ;
 use Carp ;
@@ -986,6 +987,7 @@ Readonly my $GMAIL_MAXSIZE => 35_651_584 ;
 # Not finished yet...
 
 my(
+        # JZ: global state lives in $sync
         $sync,
         $debugimap, $debugimap1, $debugimap2, $debugcontent, $debugflags,
         $debuglist, $debugdev, $debugmaxlinelength, $debugcgi,
@@ -1162,6 +1164,7 @@ after_get_options( $sync, $options_good ) ;
 cgisetcontext( $sync ) ;
 
 # --gmail --gmail --exchange --office etc.
+# JZ: TODO: What is easyany, why --gmail --exchange --office flags?
 easyany( $sync ) ;
 
 $sync->{ sanitize } = defined $sync->{ sanitize } ? $sync->{ sanitize } : 1 ;
@@ -1170,6 +1173,7 @@ sanitize( $sync ) ;
 $sync->{ tmpdir } ||= File::Spec->tmpdir(  ) ;
 
 # Unit tests
+# JZ: Are unit tests being called on every execution? Some kind of minimal asserts? Interesting idea.
 testsexit( $sync ) ;
 
 # init live varaiables
@@ -1177,7 +1181,7 @@ testslive( $sync ) if ( $sync->{testslive} ) ;
 testslive6( $sync ) if ( $sync->{testslive6} )  ;
 
 #
-
+# JZ: proc id? Are we going to run a thread?
 $sync->{pidfile} =  defined  $sync->{pidfile}  ? $sync->{pidfile} : $sync->{ tmpdir } . '/imapsync.pid' ;
 $sync->{pidfilelocking} = defined  $sync->{pidfilelocking}  ? $sync->{pidfilelocking} : 0 ;
 
@@ -1414,6 +1418,7 @@ if ( $sync->{justconnect}
         or not $sync->{host2}
         )
 {
+# JZ: TODO: try this out. a good starting point.
         my $justconnect = justconnect( $sync ) ;
         myprint( debugmemory( $sync, " after justconnect() call" ) ) ;
         exit_clean( $sync, $EX_OK, "Exiting after a justconnect on host(s): $justconnect\n" ) ;
@@ -5024,7 +5029,7 @@ sub here_twice
         }
 }
 
-
+# JZ: justconnect-entry-point.
 sub justconnect 
 {
         my $mysync = shift ;
@@ -5305,6 +5310,7 @@ sub connect_imap
         my $side = lc $Side ;
         myprint( "$Side: connecting on $side [$host] port [$port]\n"  ) ;
 
+# JZ: actually just-connect is pretty simple.
         $imap->connect(  )
           or exit_clean( $sync, $EXIT_CONNECTION_FAILURE, "$Side: Can not open imap connection on [$host]: " . $imap->LastError . " $OS_ERROR\n" ) ;
 		myprint( "$Side IP address: ", $imap->Socket->peerhost(), "\n"  ) ;
@@ -5525,7 +5531,7 @@ sub set_tls
 
 
 
-
+# JZ: power of expressive perl. This would be 5x LOC in java.
 sub init_imap
 {
         my(
@@ -5588,6 +5594,7 @@ sub plainauth
 # (note there is an http/rest tab, where the real info is hidden away... went on a witch hunt
 # until I noticed that...)
 #
+# JZ: bookmark gmail-auth-info
 # This is targeted at gmail to maintain compatibility after google's oauth1 service is deactivated
 # on May 5th, 2015: https://developers.google.com/gmail/oauth_protocol
 # If there are other oauth2 implementations out there, this would need to be modified to be
@@ -6392,6 +6399,7 @@ sub create_folder
         my( $myimap2 , $h2_fold , $h1_fold ) = @ARG ;
         my( @parts , $parent ) ;
 
+# JZ: $myimap2 is an instance of perl's imap lib (Mail::IMAPClient ?)
         if ( $myimap2->IsUnconnected(  ) ) {
                 myprint( "Host2: Unconnected state\n"  ) ;
                 return( 0 ) ;
@@ -9086,6 +9094,16 @@ EOF
 #
 sub append_message_on_host2
 {
+
+# JZ: this is where the magic happens: a message is added directly to the mailbox without using SMTP.
+# Implemented using the APPEND command from the IMAP spec.
+#
+# Perl's imapclient lib method: append_string
+# src (line 3171): https://metacpan.org/source/DJKERNEN/Mail-IMAPClient-2.2.9/IMAPClient.pm
+#
+# IMAP spec: RFC 3501
+# description: https://tools.ietf.org/html/rfc3501#section-6.3.11
+
         my( $mysync, $string_ref, $h1_fold, $h1_msg, $string_len, $h2_fold, $h1_size, $h1_flags, $h1_date, $cache_dir ) = @_ ;
         myprint( debugmemory( $mysync, " at A1" ) ) ;
 
